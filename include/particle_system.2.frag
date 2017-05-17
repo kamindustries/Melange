@@ -106,7 +106,7 @@ void main() {
         vec3 velocity_new = texture2D(sTD2DInputs[VELOCITY_NEW], posCoord ).rgb;
         //vec3 velocity_new = vec3(0.0);  // placeholder for new velocity field
         // velocity = velocity_new * (mass * .1  * dt ) * dt + velocity * momentum; // how is fluid force related to the *.1?
-        velocity = velocity_new * (mass * 1./cellSize  * dt ) * dt + velocity * momentum; // how is fluid force related to the *.1?
+        velocity = velocity_new * (mass * pow(1./cellSize,2.)  ) * dt + velocity * momentum; // how is fluid force related to the *.1?
 
         //velocity *= life;
         

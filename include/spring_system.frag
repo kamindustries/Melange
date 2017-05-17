@@ -11,6 +11,7 @@ uniform float anchorForce;
 uniform float fluidForce;
 uniform float mass;
 uniform float fluidLengthThreshold;
+uniform int reset;
 
 vec2 springs[2] = vec2[2](vec2(-1.,0.), vec2(1.,0.));
 
@@ -18,6 +19,7 @@ const int POSITION = 0;
 const int VELOCITY = 1;
 const int VELOCITY_NEW = 2;
 const int ANCHOR = 3;
+const int BLUR_MASK = 4;
 
 const float smallf = 0.000001;
 
@@ -33,13 +35,16 @@ void main() {
     vec3 vel0 = texture2D(sTD2DInputs[VELOCITY], vUV.st).xyz;
     vec3 vel_new = texture2D(sTD2DInputs[VELOCITY_NEW], pos0.xy).xyz; 
     vec3 anchor = texture2D(sTD2DInputs[ANCHOR], vUV.st).xyz;
+    float blur_mask = texture2D(sTD2DInputs[BLUR_MASK], vUV.st).r;
     vec3 force = vec3(0.);
+
 
 	float fluidToggle = 1.;
 	if (length(anchor-pos0) > fluidLengthThreshold) fluidToggle = 0.;
+    blur_mask = pow(blur_mask+1., 1.777);
 
     force -= viscousDrag * vel0; // viscous drag * velocity   
-    force += vel_new * dt * dt * fluidForce * fluidToggle;
+    force += vel_new * dt * dt * fluidForce * fluidToggle * blur_mask * vec3(1.5*9./16., 1., 1.); //weird aspect look at this later
     force += (anchor-pos0) * anchorForce;
 
 
@@ -59,30 +64,33 @@ void main() {
         vec3 vel1 = texture2D(sTD2DInputs[VELOCITY], coord).xyz;
 
         vec3 dx = pos0 - pos1;
-        float len = length(dx) + smallf;
+        float len = length(dx);
+        vec3 f = vec3(0.);
 
-        vec3 f = vec3(springConstant * (len - restLength)); // spring constant * (magnitude - restLength)
-        f += dampingConstant * (vel0 - vel1) * dx/vec3(len); // damping constant * (ve1-vel2) * (dx/magnitude);
-        f *= -dx/vec3(len);
+        if (len != 0.0) {
+            f = vec3(springConstant * (len - restLength)); // spring constant * (magnitude - restLength)
+            f += dampingConstant * (vel0 - vel1) * dx/vec3(len); // damping constant * (ve1-vel2) * (dx/magnitude);
+            f *= -dx/vec3(len);
+        }
 
         force += f;
+
     }
 
 
     // Apply derivative
+    if (reset > 0) {
+        force = vec3(0.);
+        vel0 = vec3(0.);
+    }
+
     vec3 dpdt = vel0;
     vec3 dvdt = force/vec3(mass);  // force/mass
 
     pos0 += dpdt * dt;
     vel0 += dvdt * dt;
-    
-
-    float mag = length(vel0.xy);
-    mag *= 10.;
 
     vec4 color = vec4(1.);
-    // color = vec4(mag);
-
 
     fragColorPosition = pos0;
     fragColorVelocity = vel0; 
