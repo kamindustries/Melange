@@ -19,7 +19,6 @@ const int POSITION = 0;
 const int VELOCITY = 1;
 const int VELOCITY_NEW = 2;
 const int ANCHOR = 3;
-const int BLUR_MASK = 4;
 
 const float smallf = 0.000001;
 
@@ -35,16 +34,14 @@ void main() {
     vec3 vel0 = texture2D(sTD2DInputs[VELOCITY], vUV.st).xyz;
     vec3 vel_new = texture2D(sTD2DInputs[VELOCITY_NEW], pos0.xy).xyz; 
     vec3 anchor = texture2D(sTD2DInputs[ANCHOR], vUV.st).xyz;
-    float blur_mask = texture2D(sTD2DInputs[BLUR_MASK], vUV.st).r;
     vec3 force = vec3(0.);
 
 
 	float fluidToggle = 1.;
 	if (length(anchor-pos0) > fluidLengthThreshold) fluidToggle = 0.;
-    blur_mask = pow(blur_mask+1., 1.777);
 
     force -= viscousDrag * vel0; // viscous drag * velocity   
-    force += vel_new * dt * dt * fluidForce * fluidToggle * blur_mask * vec3(1.5*9./16., 1., 1.); //weird aspect look at this later
+    force += vel_new * dt * dt * fluidForce * fluidToggle * vec3(1.5*9./16., 1., 1.); //weird aspect look at this later
     force += (anchor-pos0) * anchorForce;
 
 

@@ -9,7 +9,6 @@ int VELOCITY = 0;
 int DENS_TEMP = 1;
 int AMB_TEMP = 2;
 int BUOY_MASK = 3;
-int OBSTACLE_N = 4;
 
 // densTemp.rgba = (densityA, densityB, temperature, -)
 
@@ -27,8 +26,8 @@ void main()
   fragColor = vec4(V, 0., 0.);
 
   if (densTemp.b > ambTemp) {
-      vec2 buoyDirection = texelFetch(sTD2DInputs[BUOY_MASK], TC, 0).xy;
-      vec2 buoy = (dt * (densTemp.b - ambTemp) * sigma - densTemp.g * kappa ) * vec2(1.) * buoyDirection;
+      // vec2 buoyDirection = texelFetch(sTD2DInputs[BUOY_MASK], TC, 0).xy;
+      vec2 buoy = (dt * (densTemp.b - ambTemp) * sigma - densTemp.g * kappa ) * vec2(1.) * vec2(0,-1.);
       fragColor += vec4(buoy, 0., 0.);
   }
 

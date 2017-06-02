@@ -3,12 +3,12 @@ layout(location=1) out vec3 fragColorVel;
 layout(location=2) out vec4 fragColorCd;
 layout(location=3) out float fragColorMass;
 layout(location=4) out float fragColorMomentum;
-layout(location=5) out float fragColorLife;
+layout(location=5) out vec4 fragColorLife;
 
 const vec2[4] laplacian = vec2[](vec2(-1.,0.), vec2(1.,0.), vec2(0.,1.), vec2(0.,-1.)); 
 
 uniform float dt;
-uniform float ageRate;
+uniform float constAgeRate;
 uniform int reset;
 uniform int fixAttempts;
 uniform float absTime;
@@ -56,14 +56,18 @@ void main() {
     vec4 color = texture2D(sTD2DInputs[COLOR_OLD], vUV.st);
     float mass = texture2D(sTD2DInputs[MASS_OLD], vUV.st).r;
     float momentum = texture2D(sTD2DInputs[MOMENTUM_OLD], vUV.st).r;
-    float life = texture2D(sTD2DInputs[LIFE_OLD], vUV.st).r;
+
+    // aging = (life, age rate, -, -)
+    vec4 life = texture2D(sTD2DInputs[LIFE_OLD], vUV.st);
+    float ageRate = life.y;
 
     // bool spawn = life < 0. ? true : false;
     bool spawn = (texture2D(sTD2DInputs[SPAWN_NEW], vUV.st).r > 0) ? true : false;
-    bool alive = (life > 0. && life < 1.) ? true : false;
+    bool alive = (life.r > 0. && life.r < 1.) ? true : false;
     if (reset > 0) spawn = true;
 
     vec2 spawnCoord = vUV.st;
+    vec2 randOffset = vec2(0.);
 
     bool stopped = (length(velocity.xy) < .00005) ? true : false;
 
@@ -72,7 +76,7 @@ void main() {
         float try = fixAttempts;
         bool foundNew = false;
         while (try > 0 && !foundNew) {
-            vec2 randOffset = vec2(rand(vec2(try + (absTime+.2),try + (absTime+.4))), rand(vec2(try + (absTime+.6),try + (absTime+.8))));
+            randOffset = vec2(rand(vec2(try + (absTime+.2),try + (absTime+.4))), rand(vec2(try + (absTime+.6),try + (absTime+.8))));
             spawnCoord = texture(sTD2DInputs[NOISE], vUV.st + randOffset).st;
             float checkSpawn = texture(sTD2DInputs[SPAWN_NEW], spawnCoord).r;
             if (checkSpawn > 0.) {
@@ -87,7 +91,10 @@ void main() {
 
     // if (spawn && !alive) {
     if (spawn) {
-        life = 1.0 - ageRate;
+        
+
+        vec4 RANDOM_TX = texture(sTD2DInputs[NOISE], vUV.st);
+
 
         position = texture2D(sTD2DInputs[POS_NEW], spawnCoord).xyz;
         velocity = texture2D(sTD2DInputs[VELOCITY_NEW], spawnCoord).xyz * dt * dt * .1;
@@ -95,7 +102,12 @@ void main() {
         mass = texture2D(sTD2DInputs[MASS_NEW], spawnCoord).r;
         momentum = texture2D(sTD2DInputs[MOMENTUM_NEW], spawnCoord).r;
 
-        position.xy += (spawnCoord.xy * .001) + (texture(sTD2DInputs[NOISE], vUV.st).st * .002);
+        position.xy += (RANDOM_TX.xy * .005);
+
+        float selectedAgeRate = constAgeRate;
+        selectedAgeRate *= fit(RANDOM_TX.z, 0., 1., .8, 1.2);
+        life.r = 1.0 - selectedAgeRate;
+        life.g = selectedAgeRate;
 
     } //SPAWN
 
@@ -106,27 +118,28 @@ void main() {
         vec3 velocity_new = texture2D(sTD2DInputs[VELOCITY_NEW], posCoord ).rgb;
         //vec3 velocity_new = vec3(0.0);  // placeholder for new velocity field
         // velocity = velocity_new * (mass * .1  * dt ) * dt + velocity * momentum; // how is fluid force related to the *.1?
-        velocity = velocity_new * (mass * pow(1./cellSize,2.)  ) * dt + velocity * momentum; // how is fluid force related to the *.1?
-
+        velocity = velocity_new * (mass * pow(1./cellSize, dt * 20.)  ) * dt + velocity * momentum; // how is fluid force related to the *.1?
+        // velocity.x *= 1./1.777;
         //velocity *= life;
         
-        position += velocity;
+        position += (velocity * vec3(1., 1.777, 1.));
 
         color = texture2D(sTD2DInputs[COLOR_OLD], vUV.st);
         vec4 cdNew = texture2D(sTD2DInputs[COLOR_NEW], vUV.st);
         color = mix(color, cdNew, .1);
 
         if (posCoord.x < 0. || posCoord.x > 1. || posCoord.y < 0. || posCoord.y > 1.) {
-            life = 0.;
+            life.r = 0.;
         }
 
-        life -= ageRate;
+        life.r -= ageRate;
 
     } //else
 
-    if (life < 0.) {
+    if (life.r < 0.) {
         velocity = vec3(0.);
         color = vec4(0.);
+        position.x = -1000.;
     }
 
     fragColorPos = position;

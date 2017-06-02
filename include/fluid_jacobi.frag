@@ -5,44 +5,35 @@ uniform float inverseBeta;
 
 int PRESSURE = 0;
 int DIVERGENCE = 1;
-int OBSTACLE_N = 2;
+int OBSTACLE_N = 2; // bounds = {TOP, BOTTOM, LEFT, RIGHT}
+
+float samplePressure(ivec2 coord, vec4 bounds) {
+
+    ivec2 cellOffset = ivec2(0, 0);
+
+    vec4 oN = texelFetch(sTD2DInputs[OBSTACLE_N], coord, 0);
+
+    if (oN.z > 0.0)      cellOffset.x = 1;
+    else if (oN.w > 0.0) cellOffset.x = -1;
+    if (oN.y > 0.0)      cellOffset.y = 1;
+    else if (oN.x > 0.0) cellOffset.y = -1;
+
+    return texelFetchOffset(sTD2DInputs[PRESSURE], coord, 0, cellOffset).x;
+
+}
+
 
 void main()
 {
     ivec2 T = ivec2(gl_FragCoord.xy);
 
-    // Find neighboring pressure:
-    vec4 P = vec4(0.);
-    P.x = texelFetchOffset(sTD2DInputs[PRESSURE], T, 0, ivec2(0, 1)).r;
-    P.y = texelFetchOffset(sTD2DInputs[PRESSURE], T, 0, ivec2(0, -1)).r;
-    P.z = texelFetchOffset(sTD2DInputs[PRESSURE], T, 0, ivec2(1, 0)).r;
-    P.w = texelFetchOffset(sTD2DInputs[PRESSURE], T, 0, ivec2(-1, 0)).r;
-
     // pure Neumann pressure boundary
     vec4 oN = texelFetch(sTD2DInputs[OBSTACLE_N], T, 0);
 
-	
-    float pN = mix(P.x, P.y, oN.x);  // if (oT > 0.0) xT = xC;
-    float pS = mix(P.y, P.x, oN.y);  // if (oB > 0.0) xB = xC;
-    float pE = mix(P.z, P.w, oN.z);  // if (oR > 0.0) xR = xC;
-    float pW = mix(P.w, P.z, oN.w);  // if (oL > 0.0) xL = xC;
-
-
-	ivec2 offsetN = ivec2(0,1);
-    ivec2 offsetS = ivec2(0,-1);
-    ivec2 offsetE = ivec2(1,0);
-    ivec2 offsetW = ivec2(-1,0);
-    
-	if (oN.x > 0.) offsetN.y = -1; 
-    else if (oN.y > 0.) offsetS.y = 1; 
-    
-    if (oN.z > 0.) offsetE.x = -1; 
-    else if (oN.w > 0.) offsetW.x = 1; 
-	
-	pN = texelFetchOffset(sTD2DInputs[PRESSURE], T, 0, offsetN).r;
-	pS = texelFetchOffset(sTD2DInputs[PRESSURE], T, 0, offsetS).r;
-	pE = texelFetchOffset(sTD2DInputs[PRESSURE], T, 0, offsetE).r;
-	pW = texelFetchOffset(sTD2DInputs[PRESSURE], T, 0, offsetW).r;
+    float pW = samplePressure(T + ivec2(-1, 0), oN);
+    float pE = samplePressure(T + ivec2(1, 0), oN);
+    float pS = samplePressure(T + ivec2(0, -1), oN);
+    float pN = samplePressure(T + ivec2(0, 1), oN);
 	
     float bC = texelFetch(sTD2DInputs[DIVERGENCE], T, 0).r;
     fragColor = vec4(pW + pE + pS + pN + alpha * bC) * inverseBeta;

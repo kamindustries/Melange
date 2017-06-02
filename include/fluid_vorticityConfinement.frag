@@ -25,19 +25,20 @@ void main()
 {
   ivec2 TC = ivec2(gl_FragCoord.xy);
 
+  // method 1: single sample from fixed radius
   // Find derivative of the magnitude (n = del |w|)
-  // int sz = 3;
-  // float dw_dy = ( curl(TC.x+sz, TC.y) - curl(TC.x-sz, TC.y) ) * 0.5;
-  // float dw_dx = ( curl(TC.x, TC.y+sz) - curl(TC.x, TC.y-sz) ) * 0.5;
+  // int sz = 1;
+  // float dw_dx = ( curl(TC.x+sz, TC.y) - curl(TC.x-sz, TC.y) ) * 0.5;
+  // float dw_dy = ( curl(TC.x, TC.y+sz) - curl(TC.x, TC.y-sz) ) * 0.5;
 
+  // method 2: take average of different sample sizes
   float dw_dy = 0.;
   float dw_dx = 0.;
-
   int size[3] = int[](1, 4, 10);
   for (int i = 0; i < 3; i++) {
     int sz = size[i];
-    dw_dy += ( curl(TC.x+sz, TC.y) - curl(TC.x-sz, TC.y) ) * 0.5;
-    dw_dx += ( curl(TC.x, TC.y+sz) - curl(TC.x, TC.y-sz) ) * 0.5;
+    dw_dx += ( curl(TC.x+sz, TC.y) - curl(TC.x-sz, TC.y) ) * 0.5;
+    dw_dy += ( curl(TC.x, TC.y+sz) - curl(TC.x, TC.y-sz) ) * 0.5;
   }
   dw_dy /= 3.;
   dw_dx /= 3.;
